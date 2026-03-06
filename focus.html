@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Focus">
+<meta name="theme-color" content="#0f1117">
+<title>Focus</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e28;
+    --border: #252a38;
+    --amber: #e8a045;
+    --amber-dim: #a06820;
+    --amber-glow: rgba(232,160,69,0.12);
+    --text: #d4d8e8;
+    --text-dim: #6b7292;
+    --text-muted: #3d4260;
+    --green: #4ade80;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --font-mono: 'DM Mono', monospace;
+    --font-display: 'Playfair Display', serif;
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: calc(var(--safe-top) + 14px) 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .header-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--amber);
+    letter-spacing: -0.3px;
+  }
+
+  .header-date {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  .icon-btn:active { transform: scale(0.93); background: var(--border); }
+
+  /* ── Navigation ── */
+  .nav {
+    display: flex;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    padding-bottom: var(--safe-bottom);
+    flex-shrink: 0;
+  }
+
+  .nav-btn {
+    flex: 1;
+    padding: 10px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.15s;
+    border: none;
+    background: none;
+    font-family: var(--font-mono);
+  }
+
+  .nav-btn.active { color: var(--amber); }
+  .nav-btn:active { opacity: 0.7; }
+
+  .nav-icon { font-size: 18px; }
+  .nav-label { font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; }
+
+  /* ── Scroll area ── */
+  .view {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 16px;
+    display: none;
+  }
+  .view.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    margin-top: 4px;
+  }
+
+  /* ── Dashboard ── */
+  .greeting {
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .greeting span { color: var(--amber); }
+
+  .sub-greeting {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  .progress-ring-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .progress-ring-container {
+    position: relative;
+    width: 100px;
+    height: 100px;
+  }
+
+  .progress-ring-container svg {
+    transform: rotate(-90deg);
+  }
+
+  .progress-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .progress-pct {
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--amber);
+  }
+
+  .progress-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .stat-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--amber);
+    display: block;
+  }
+
+  .stat-lbl {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-top: 2px;
+    display: block;
+  }
+
+  .cal-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    margin-bottom: 12px;
+  }
+  .cal-strip::-webkit-scrollbar { display: none; }
+
+  .cal-event {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 8px;
+    padding: 8px 10px;
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+
+  .cal-event-title {
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  .cal-event-time {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ── Task items ── */
+  .task-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .task-item:last-child { border-bottom: none; }
+
+  .task-check {
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+    transition: all 0.15s;
+  }
+
+  .task-item.done .task-check {
+    background: var(--amber);
+    border-color: var(--amber);
+  }
+
+  .task-item.done .task-check::after {
+    content: '✓';
+    color: var(--bg);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .task-text {
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .task-item.done .task-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+  }
+
+  .task-goal-link {
+    font-size: 10px;
+    color: var(--amber-dim);
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+  }
+
+  /* ── Add input ── */
+  .add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    outline: none;
+    flex: 1;
+    transition: border 0.15s;
+  }
+  .input:focus { border-color: var(--amber-dim); }
+  .input::placeholder { color: var(--text-muted); }
+
+  select.input option {
+    background: var(--bg3);
+    color: var(--text);
+  }
+
+  .btn {
+    background: var(--amber);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.95); opacity: 0.85; }
+  .btn.secondary {
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn.danger {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+  }
+  .btn.full { width: 100%; justify-content: center; margin-top: 8px; display: flex; }
+
+  /* ── Habits ── */
+  .habit-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .habit-item:last-child { border-bottom: none; }
+
+  .habit-dot {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 2px solid var(--border);
+    background: var(--bg3);
+  }
+  .habit-dot.done {
+    border-color: var(--amber);
+    background: var(--amber-glow);
+    box-shadow: 0 0 16px var(--amber-glow);
+  }
+  .habit-dot:active { transform: scale(0.9); }
+
+  .habit-info { flex: 1; min-width: 0; }
+  .habit-name { font-size: 14px; color: var(--text); }
+  .habit-streak { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .streak-fire { color: var(--amber); }
+
+  .habit-week {
+    display: flex;
+    gap: 3px;
+  }
+
+  .habit-day-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .habit-day-dot.done { background: var(--amber); }
+  .habit-day-dot.today { outline: 1px solid var(--amber-dim); outline-offset: 1px; }
+
+  /* ── Goals ── */
+  .goal-item {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .goal-item:last-child { border-bottom: none; }
+
+  .goal-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+  }
+
+  .goal-name {
+    font-size: 14px;
+    color: var(--text);
+    flex: 1;
+    padding-right: 8px;
+  }
+
+  .goal-cat {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--amber-dim);
+    padding: 2px 6px;
+    border: 1px solid var(--amber-dim);
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .goal-bar-wrap {
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+
+  .goal-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .goal-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .goal-deadline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .days-left { color: var(--amber); }
+
+  /* ── Calendar connect ── */
+  .cal-connect {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .cal-icon { font-size: 36px; margin-bottom: 10px; }
+  .cal-connect h3 { font-family: var(--font-display); font-size: 18px; margin-bottom: 6px; }
+  .cal-connect p { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 16px; }
+
+  /* ── Settings ── */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-label { font-size: 13px; color: var(--text); }
+  .settings-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .toggle {
+    width: 44px;
+    height: 26px;
+    background: var(--border);
+    border-radius: 13px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--amber); }
+  .toggle::after {
+    content: '';
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    z-index: 100;
+    align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(var(--safe-bottom) + 20px);
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .modal-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: var(--amber);
+  }
+
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  .form-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .input.full { width: 100%; }
+
+  /* ── Animations ── */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card, .habit-item, .goal-item { animation: fadeIn 0.25s ease both; }
+
+  .empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .empty-state span { font-size: 28px; display: block; margin-bottom: 8px; }
+
+  .amber { color: var(--amber); }
+
+  /* delete button */
+  .delete-btn {
+    font-size: 16px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+  }
+  .delete-btn:active { color: var(--red); }
+
+  /* cal setup */
+  .setup-steps {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text-dim);
+  }
+  .setup-steps b { color: var(--text); }
+  .setup-steps a { color: var(--blue); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+  .badge.green { background: rgba(74,222,128,0.15); color: var(--green); }
+  .badge.dim { background: var(--bg3); color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">Focus</div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
+    <div class="header-right">
+      <div class="icon-btn" id="calSyncBtn" onclick="syncCalendar()" title="Sync Calendar">📅</div>
+      <div class="icon-btn" onclick="openAddModal()" title="Add">＋</div>
+    </div>
+  </div>
+
+  <!-- Views -->
+  <div class="view active" id="view-dashboard"></div>
+  <div class="view" id="view-habits"></div>
+  <div class="view" id="view-goals"></div>
+  <div class="view" id="view-settings"></div>
+
+  <!-- Nav -->
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showView('dashboard',this)">
+      <span class="nav-icon">◈</span><span class="nav-label">Today</span>
+    </button>
+    <button class="nav-btn" onclick="showView('habits',this)">
+      <span class="nav-icon">⬡</span><span class="nav-label">Habits</span>
+    </button>
+    <button class="nav-btn" onclick="showView('goals',this)">
+      <span class="nav-icon">◎</span><span class="nav-label">Goals</span>
+    </button>
+    <button class="nav-btn" onclick="showView('settings',this)">
+      <span class="nav-icon">⊕</span><span class="nav-label">Setup</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-overlay" id="addModal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">Add Item</div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:16px;">
+      <button class="btn" id="tab-task" onclick="switchModalTab('task')">Task</button>
+      <button class="btn secondary" id="tab-habit" onclick="switchModalTab('habit')">Habit</button>
+      <button class="btn secondary" id="tab-goal" onclick="switchModalTab('goal')">Goal</button>
+    </div>
+
+    <!-- Task form -->
+    <div id="form-task">
+      <div class="form-group">
+        <label class="form-label">Task</label>
+        <input class="input full" id="taskName" placeholder="What needs doing today?" maxlength="100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Link to goal (optional)</label>
+        <select class="input full" id="taskGoal">
+          <option value="">— no goal —</option>
+        </select>
+      </div>
+      <button class="btn full" onclick="addTask()">Add Task</button>
+    </div>
+
+    <!-- Habit form -->
+    <div id="form-habit" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Habit name</label>
+        <input class="input full" id="habitName" placeholder="e.g. Morning workout" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Emoji icon</label>
+        <input class="input full" id="habitEmoji" placeholder="🏋️" maxlength="2" value="⬡">
+      </div>
+      <button class="btn full" onclick="addHabit()">Add Habit</button>
+    </div>
+
+    <!-- Goal form -->
+    <div id="form-goal" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Goal</label>
+        <input class="input full" id="goalName" placeholder="e.g. Ship Project Ashlar v1" maxlength="80">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="input full" id="goalCat">
+          <option value="work">Work</option>
+          <option value="health">Health</option>
+          <option value="learning">Learning</option>
+          <option value="personal">Personal</option>
+          <option value="finance">Finance</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target date</label>
+        <input class="input full" type="date" id="goalDeadline">
+      </div>
+      <button class="btn full" onclick="addGoal()">Add Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- iCloud Calendar Setup Modal -->
+<div class="modal-overlay" id="calModal" onclick="closeCalModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">iPhone Calendar Setup</div>
+    <div class="setup-steps">
+      <b>Get your iCloud calendar link (30 seconds):</b><br>
+      1. Open <b>Calendar</b> app on iPhone or iCloud.com<br>
+      2. Tap the ⓘ next to your calendar → <b>Share Calendar</b><br>
+      3. Toggle <b>Public Calendar</b> ON<br>
+      4. Tap <b>Share Link</b> → Copy<br>
+      5. Paste the <b>webcal://</b> link below<br><br>
+      <b>Note:</b> Only events marked public are visible. Your data never leaves your phone.
+    </div>
+    <div class="form-group">
+      <label class="form-label">iCloud Calendar URL (webcal:// or https://)</label>
+      <input class="input full" id="icsUrlInput" placeholder="webcal://p01-caldav.icloud.com/published/2/...">
+    </div>
+    <div id="calSyncStatus" style="font-size:12px;color:var(--text-dim);margin-bottom:10px;min-height:16px"></div>
+    <button class="btn full" onclick="saveIcsUrl()">Save & Sync Calendar</button>
+    <button class="btn secondary full" style="margin-top:8px" onclick="document.getElementById('calModal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const today = () => new Date().toISOString().slice(0,10);
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+let tasks   = load('focus_tasks', []);
+let habits  = load('focus_habits', []);
+let goals   = load('focus_goals', []);
+let calEvents = load('focus_cal', []);
+let settings = load('focus_settings', { icsUrl: '', calConnected: false });
+
+// ══════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════
+function showView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  btn.classList.add('active');
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function renderAll() {
+  renderDashboard();
+  renderHabits();
+  renderGoals();
+  renderSettings();
+}
+
+// ── DASHBOARD ──
+function renderDashboard() {
+  const d = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('headerDate').textContent = `${days[d.getDay()]} · ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+
+  const todayTasks = tasks.filter(t => t.date === today());
+  const done = todayTasks.filter(t => t.done).length;
+  const total = todayTasks.length;
+  const pct = total > 0 ? Math.round((done/total)*100) : 0;
+
+  const h = d.getHours();
+  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+
+  let html = `
+    <div class="greeting">${greet},<br><span>JP.</span></div>
+    <div class="sub-greeting">Here's where you stand today.</div>
+  `;
+
+  // Progress ring
+  const r = 36, circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  html += `
+    <div class="progress-ring-wrap">
+      <div class="progress-ring-container">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="${r}" stroke="#1a1e28" stroke-width="8" fill="none"/>
+          <circle cx="50" cy="50" r="${r}" stroke="${pct===100?'#4ade80':'#e8a045'}" stroke-width="8" fill="none"
+            stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+            stroke-linecap="round" style="transition:stroke-dashoffset 0.6s ease"/>
+        </svg>
+        <div class="progress-ring-center">
+          <div class="progress-pct">${pct}%</div>
+          <div class="progress-label">Done</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Stats
+  const habitsToday = habits.filter(h => (h.log||[]).includes(today())).length;
+  const activeGoals = goals.filter(g => !g.done).length;
+  html += `
+    <div class="stat-row">
+      <div class="stat-box"><span class="stat-val">${done}/${total}</span><span class="stat-lbl">Tasks</span></div>
+      <div class="stat-box"><span class="stat-val">${habitsToday}/${habits.length}</span><span class="stat-lbl">Habits</span></div>
+      <div class="stat-box"><span class="stat-val">${activeGoals}</span><span class="stat-lbl">Goals</span></div>
+    </div>
+  `;
+
+  // Calendar events
+  if (calEvents.length > 0) {
+    html += `<div class="section-label">Today's Calendar</div><div class="cal-strip">`;
+    calEvents.forEach(ev => {
+      html += `<div class="cal-event">
+        <div class="cal-event-title">${escHtml(ev.summary||'(no title)')}</div>
+        <div class="cal-event-time">${formatEventTime(ev)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  } else if (settings.calConnected) {
+    html += `<div class="section-label">Today's Calendar</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        No events today — or tap 📅 to re-sync.
+      </div>`;
+  }
+
+  // Today's tasks
+  html += `<div class="card">
+    <div class="card-header">
+      <div class="card-title">Today's Tasks</div>
+    </div>`;
+
+  if (todayTasks.length === 0) {
+    html += `<div class="empty-state"><span>✦</span>No tasks yet.<br>Tap + to add something.</div>`;
+  } else {
+    todayTasks.forEach((t, i) => {
+      const goalName = t.goalId ? (goals.find(g=>g.id===t.goalId)||{}).name : '';
+      html += `<div class="task-item ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
+        <div class="task-check"></div>
+        <div style="flex:1">
+          <div class="task-text">${escHtml(t.text)}</div>
+          ${goalName?`<div class="task-goal-link">↗ ${escHtml(goalName)}</div>`:''}
+        </div>
+        <button class="delete-btn" style="font-size:13px;color:var(--blue)" title="Add to iPhone Calendar" onclick="event.stopPropagation();addTaskToCalendar('${t.id}')">📅</button>
+        <button class="delete-btn" onclick="event.stopPropagation();deleteTask('${t.id}')">×</button>
+      </div>`;
+    });
+  }
+
+  html += `</div>`;
+
+  document.getElementById('view-dashboard').innerHTML = html;
+}
+
+function formatEventTime(ev) {
+  if (ev.dtstart && ev.dtstart.includes('T')) {
+    // Parse ICS datetime: 20240306T090000Z or 20240306T090000
+    const s = ev.dtstart.replace('Z','');
+    const h = s.slice(9,11), m = s.slice(11,13);
+    const d = new Date(); d.setHours(parseInt(h), parseInt(m));
+    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+  return 'All day';
+}
+
+// ── HABITS ──
+function renderHabits() {
+  let html = `<div class="card-title" style="margin-bottom:14px">Habit Tracker</div>`;
+
+  if (habits.length === 0) {
+    html += `<div class="empty-state"><span>⬡</span>No habits yet.<br>Build consistency one day at a time.</div>`;
+  } else {
+    html += `<div class="card">`;
+    habits.forEach(h => {
+      const log = h.log || [];
+      const doneTodayFlag = log.includes(today());
+      const streak = calcStreak(log);
+
+      // Last 7 days dots
+      const last7 = [];
+      for (let i=6; i>=0; i--) {
+        const d = new Date(); d.setDate(d.getDate()-i);
+        const ds = d.toISOString().slice(0,10);
+        last7.push({ ds, done: log.includes(ds), isToday: i===0 });
+      }
+      const dotsHtml = last7.map(x =>
+        `<div class="habit-day-dot ${x.done?'done':''} ${x.isToday?'today':''}"></div>`
+      ).join('');
+
+      html += `<div class="habit-item">
+        <div class="habit-dot ${doneTodayFlag?'done':''}" onclick="toggleHabit('${h.id}')">${h.emoji||'⬡'}</div>
+        <div class="habit-info">
+          <div class="habit-name">${escHtml(h.name)}</div>
+          <div class="habit-streak">
+            ${streak>0?`<span class="streak-fire">🔥</span> ${streak} day streak — `:''}
+            <span style="display:inline-flex;gap:3px;vertical-align:middle">${dotsHtml}</span>
+          </div>
+        </div>
+        <button class="delete-btn" onclick="deleteHabit('${h.id}')">×</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('view-habits').innerHTML = html;
+}
+
+function calcStreak(log) {
+  if (!log || log.length === 0) return 0;
+  const sorted = [...log].sort().reverse();
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const ds = d.toISOString().slice(0,10);
+    if (sorted.includes(ds)) { streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+
+// ── GOALS ──
+function renderGoals() {
+  let html = `<div class="card-title" style="margin-bottom:14px">Long-term Goals</div>`;
+
+  const active = goals.filter(g => !g.done);
+  const done = goals.filter(g => g.done);
+
+  if (goals.length === 0) {
+    html += `<div class="empty-state"><span>◎</span>No goals yet.<br>Define what you're building toward.</div>`;
+  }
+
+  if (active.length > 0) {
+    html += `<div class="card">`;
+    active.forEach(g => {
+      const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null;
+      const progress = g.progress || 0;
+      const tasksLinked = tasks.filter(t => t.goalId === g.id).length;
+      const tasksDone = tasks.filter(t => t.goalId === g.id && t.done).length;
+      html += `<div class="goal-item">
+        <div class="goal-top">
+          <div class="goal-name">${escHtml(g.name)}</div>
+          <div class="goal-cat">${g.category||'goal'}</div>
+        </div>
+        <div class="goal-bar-wrap"><div class="goal-bar" style="width:${progress}%"></div></div>
+        <div class="goal-meta">
+          <span>${progress}% complete · ${tasksDone}/${tasksLinked} tasks</span>
+          ${daysLeft!==null?`<span class="days-left">${daysLeft>0?daysLeft+'d left':'Overdue'}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <input type="range" min="0" max="100" value="${progress}" 
+            style="flex:1;accent-color:var(--amber)" 
+            oninput="updateGoalProgress('${g.id}',this.value)" onchange="saveGoalProgress('${g.id}',this.value)">
+          <button class="btn secondary" style="padding:4px 10px;font-size:11px" onclick="toggleGoalDone('${g.id}')">✓ Done</button>
+          <button class="delete-btn" onclick="deleteGoal('${g.id}')">×</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (done.length > 0) {
+    html += `<div class="section-label" style="margin-top:16px">Completed</div><div class="card">`;
+    done.forEach(g => {
+      html += `<div class="goal-item" style="opacity:0.5">
+        <div class="goal-top">
+          <div class="goal-name" style="text-decoration:line-through">${escHtml(g.name)}</div>
+          <span class="badge green">Done</span>
+        </div>
+        <button class="delete-btn" onclick="deleteGoal('${g.id}')">×</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('view-goals').innerHTML = html;
+}
+
+// ── SETTINGS ──
+function renderSettings() {
+  const calStatus = settings.calConnected
+    ? `<span class="badge green">Connected</span>`
+    : `<span class="badge dim">Not connected</span>`;
+
+  let html = `
+    <div class="card-title" style="margin-bottom:14px">Setup & Settings</div>
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">iPhone Calendar</div>
+          <div class="settings-sub">${settings.icsUrl ? 'Syncing from iCloud ICS link' : 'Paste your iCloud public calendar link'}</div>
+        </div>
+        ${calStatus}
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn" onclick="document.getElementById('icsUrlInput').value='${escHtml(settings.icsUrl||'')}';document.getElementById('calModal').classList.add('open')" style="flex:1">Configure</button>
+        ${settings.calConnected ? `<button class="btn secondary" onclick="disconnectCal()" style="flex:1">Disconnect</button>` : ''}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Install as App</div>
+          <div class="settings-sub">Open this page in Safari → Share → Add to Home Screen</div>
+        </div>
+        <span style="font-size:20px">📲</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Data</div>
+      <div class="settings-row" style="border:none">
+        <div>
+          <div class="settings-label">Tasks today</div>
+        </div>
+        <div style="color:var(--amber)">${tasks.filter(t=>t.date===today()).length}</div>
+      </div>
+      <div class="settings-row" style="border:none">
+        <div><div class="settings-label">Total habits</div></div>
+        <div style="color:var(--amber)">${habits.length}</div>
+      </div>
+      <div class="settings-row" style="border:none">
+        <div><div class="settings-label">Active goals</div></div>
+        <div style="color:var(--amber)">${goals.filter(g=>!g.done).length}</div>
+      </div>
+      <button class="btn full" style="margin-top:8px" onclick="exportAllData()">⬇ Export All Data as CSV</button>
+      <button class="btn danger full" style="margin-top:8px" onclick="clearAllData()">Clear All Data</button>
+    </div>
+  `;
+
+  document.getElementById('view-settings').innerHTML = html;
+}
+
+// ══════════════════════════════════════════
+//  ACTIONS — TASKS
+// ══════════════════════════════════════════
+function addTask() {
+  const name = document.getElementById('taskName').value.trim();
+  if (!name) return;
+  const goalId = document.getElementById('taskGoal').value;
+  tasks.push({ id: uid(), text: name, date: today(), done: false, goalId: goalId||null });
+  save('focus_tasks', tasks);
+  document.getElementById('taskName').value = '';
+  closeAddModal();
+  renderAll();
+}
+
+function toggleTask(id) {
+  const t = tasks.find(x=>x.id===id);
+  if (t) { t.done = !t.done; save('focus_tasks', tasks); renderAll(); }
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t=>t.id!==id);
+  save('focus_tasks', tasks);
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  ACTIONS — HABITS
+// ══════════════════════════════════════════
+function addHabit() {
+  const name = document.getElementById('habitName').value.trim();
+  if (!name) return;
+  const emoji = document.getElementById('habitEmoji').value.trim() || '⬡';
+  habits.push({ id: uid(), name, emoji, log: [] });
+  save('focus_habits', habits);
+  document.getElementById('habitName').value = '';
+  closeAddModal();
+  renderAll();
+}
+
+function toggleHabit(id) {
+  const h = habits.find(x=>x.id===id);
+  if (!h) return;
+  h.log = h.log || [];
+  if (h.log.includes(today())) {
+    h.log = h.log.filter(d=>d!==today());
+  } else {
+    h.log.push(today());
+  }
+  save('focus_habits', habits);
+  renderAll();
+}
+
+function deleteHabit(id) {
+  habits = habits.filter(h=>h.id!==id);
+  save('focus_habits', habits);
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  ACTIONS — GOALS
+// ══════════════════════════════════════════
+function addGoal() {
+  const name = document.getElementById('goalName').value.trim();
+  if (!name) return;
+  goals.push({
+    id: uid(),
+    name,
+    category: document.getElementById('goalCat').value,
+    deadline: document.getElementById('goalDeadline').value || null,
+    progress: 0,
+    done: false
+  });
+  save('focus_goals', goals);
+  document.getElementById('goalName').value = '';
+  closeAddModal();
+  renderAll();
+}
+
+function updateGoalProgress(id, val) {
+  const g = goals.find(x=>x.id===id);
+  if (g) { g.progress = parseInt(val); renderGoals(); }
+}
+
+function saveGoalProgress(id, val) {
+  const g = goals.find(x=>x.id===id);
+  if (g) { g.progress = parseInt(val); save('focus_goals', goals); }
+}
+
+function toggleGoalDone(id) {
+  const g = goals.find(x=>x.id===id);
+  if (g) { g.done = true; g.progress = 100; save('focus_goals', goals); renderAll(); }
+}
+
+function deleteGoal(id) {
+  goals = goals.filter(g=>g.id!==id);
+  save('focus_goals', goals);
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  iBRONE / iCLOUD CALENDAR (ICS)
+// ══════════════════════════════════════════
+
+function saveIcsUrl() {
+  let url = document.getElementById('icsUrlInput').value.trim();
+  if (!url) return;
+  // Convert webcal:// to https://
+  url = url.replace(/^webcal:\/\//i, 'https://');
+  settings.icsUrl = url;
+  save('focus_settings', settings);
+  document.getElementById('calSyncStatus').textContent = 'Syncing…';
+  fetchIcsCalendar(url).then(() => {
+    document.getElementById('calModal').classList.remove('open');
+  });
+}
+
+function disconnectCal() {
+  settings.calConnected = false;
+  settings.icsUrl = '';
+  save('focus_settings', settings);
+  calEvents = [];
+  save('focus_cal', calEvents);
+  renderAll();
+}
+
+async function syncCalendar() {
+  if (!settings.icsUrl) {
+    document.getElementById('icsUrlInput').value = '';
+    document.getElementById('calModal').classList.add('open');
+    return;
+  }
+  document.getElementById('calSyncBtn').textContent = '⏳';
+  await fetchIcsCalendar(settings.icsUrl);
+  document.getElementById('calSyncBtn').textContent = '📅';
+}
+
+async function fetchIcsCalendar(url) {
+  const statusEl = document.getElementById('calSyncStatus');
+  const PROXY = 'https://api.allorigins.win/raw?url=';
+
+  async function tryFetch(fetchUrl) {
+    const resp = await fetch(fetchUrl, { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.text();
+  }
+
+  let icsText = null;
+  try {
+    icsText = await tryFetch(url);
+  } catch (e) {
+    try {
+      icsText = await tryFetch(PROXY + encodeURIComponent(url));
+    } catch (e2) {
+      if (statusEl) statusEl.textContent = '❌ Could not load calendar. Check the URL and try again.';
+      return;
+    }
+  }
+
+  const todayEvents = parseIcsForToday(icsText);
+  calEvents = todayEvents;
+  save('focus_cal', calEvents);
+  settings.calConnected = true;
+  save('focus_settings', settings);
+  if (statusEl) statusEl.textContent = `✓ Synced — ${todayEvents.length} event(s) today`;
+  renderAll();
+}
+
+function parseIcsForToday(icsText) {
+  const todayStr = today().replace(/-/g, ''); // YYYYMMDD
+  const events = [];
+
+  // Normalise line folding (lines wrapped with \r\n + space/tab)
+  const unfolded = icsText.replace(/\r\n[ \t]/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  const eventBlocks = unfolded.split('BEGIN:VEVENT').slice(1);
+  for (const block of eventBlocks) {
+    const end = block.indexOf('END:VEVENT');
+    const content = end >= 0 ? block.slice(0, end) : block;
+
+    const get = (key) => {
+      // Match KEY, KEY;TZID=..., KEY;VALUE=... etc.
+      const re = new RegExp(`^${key}[;:][^\n]*`, 'm');
+      const m = content.match(re);
+      if (!m) return '';
+      return m[0].replace(/^[^:]+:/, '').trim();
+    };
+
+    const summary  = get('SUMMARY');
+    const dtstart  = get('DTSTART');
+    const dtend    = get('DTEND');
+    const location = get('LOCATION');
+
+    if (!dtstart) continue;
+
+    // Check if event falls on today
+    const dateStr = dtstart.replace(/T.*$/, '').replace(/[^0-9]/g, '');
+    if (dateStr !== todayStr) continue;
+
+    events.push({ summary, dtstart, dtend, location });
+  }
+
+  // Sort by start time
+  events.sort((a,b) => a.dtstart.localeCompare(b.dtstart));
+  return events;
+}
+
+// ── Add task to iPhone Calendar as .ics download ──
+function addTaskToCalendar(taskId) {
+  const t = tasks.find(x => x.id === taskId);
+  if (!t) return;
+
+  const now = new Date();
+  // Schedule task as 1-hour block starting next whole hour
+  const start = new Date(now);
+  start.setMinutes(0, 0, 0);
+  start.setHours(start.getHours() + 1);
+  const end = new Date(start); end.setHours(end.getHours() + 1);
+
+  const fmt = d => d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const uid_ = `focus-${taskId}@jp-focus-app`;
+
+  const goalName = t.goalId ? (goals.find(g=>g.id===t.goalId)||{}).name || '' : '';
+  const desc = goalName ? `Goal: ${goalName}` : 'Added from Focus app';
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Focus PWA//EN',
+    'BEGIN:VEVENT',
+    `UID:${uid_}`,
+    `DTSTAMP:${fmt(now)}`,
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${t.text}`,
+    `DESCRIPTION:${desc}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${t.text.slice(0,30).replace(/[^a-z0-9]/gi,'_')}.ics`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ══════════════════════════════════════════
+//  MODALS
+// ══════════════════════════════════════════
+function openAddModal() {
+  // Populate goal dropdown
+  const sel = document.getElementById('taskGoal');
+  sel.innerHTML = '<option value="">— no goal —</option>';
+  goals.filter(g=>!g.done).forEach(g => {
+    sel.innerHTML += `<option value="${g.id}">${escHtml(g.name)}</option>`;
+  });
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('taskName').focus(), 300);
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('addModal')) closeAddModal();
+}
+
+function closeCalModal(e) {
+  if (e.target === document.getElementById('calModal'))
+    document.getElementById('calModal').classList.remove('open');
+}
+
+function switchModalTab(tab) {
+  ['task','habit','goal'].forEach(t => {
+    document.getElementById('form-'+t).style.display = t===tab ? 'block' : 'none';
+    document.getElementById('tab-'+t).className = 'btn ' + (t===tab?'':'secondary');
+  });
+}
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+function uid() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function clearAllData() {
+  if (!confirm('Delete all tasks, habits, and goals? This cannot be undone.')) return;
+  tasks = []; habits = []; goals = []; calEvents = [];
+  save('focus_tasks', tasks);
+  save('focus_habits', habits);
+  save('focus_goals', goals);
+  save('focus_cal', calEvents);
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  EXPORT
+// ══════════════════════════════════════════
+function csvCell(val) {
+  const s = String(val ?? '');
+  return s.includes(',') || s.includes('"') || s.includes('\n')
+    ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function csvRow(cells) { return cells.map(csvCell).join(','); }
+
+function downloadCsv(filename, rows) {
+  const blob = new Blob([rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportAllData() {
+  const now = new Date().toISOString().slice(0,10);
+
+  // ── TASKS ──
+  const taskRows = [csvRow(['id','date','text','done','linked_goal'])];
+  tasks.forEach(t => {
+    const goalName = t.goalId ? (goals.find(g=>g.id===t.goalId)||{}).name||'' : '';
+    taskRows.push(csvRow([t.id, t.date, t.text, t.done ? 'yes' : 'no', goalName]));
+  });
+
+  // ── HABITS ──
+  const habitRows = [csvRow(['id','name','emoji','streak','total_days_logged','log_dates'])];
+  habits.forEach(h => {
+    const log = h.log || [];
+    habitRows.push(csvRow([h.id, h.name, h.emoji||'', calcStreak(log), log.length, log.sort().join(';')]));
+  });
+
+  // ── GOALS ──
+  const goalRows = [csvRow(['id','name','category','deadline','progress_pct','done','linked_tasks_total','linked_tasks_done'])];
+  goals.forEach(g => {
+    const linked = tasks.filter(t=>t.goalId===g.id);
+    goalRows.push(csvRow([g.id, g.name, g.category||'', g.deadline||'', g.progress||0, g.done?'yes':'no', linked.length, linked.filter(t=>t.done).length]));
+  });
+
+  // ── COMBINED: three sheets in one file, separated by blank lines ──
+  const allRows = [
+    `# Focus Export — ${now}`,
+    '',
+    '## TASKS',
+    ...taskRows,
+    '',
+    '## HABITS',
+    ...habitRows,
+    '',
+    '## GOALS',
+    ...goalRows
+  ];
+
+  downloadCsv(`focus-export-${now}.csv`, allRows);
+}
+
+// ══════════════════════════════════════════
+//  SERVICE WORKER (PWA offline)
+// ══════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    self.addEventListener('install', e => self.skipWaiting());
+    self.addEventListener('activate', e => clients.claim());
+    self.addEventListener('fetch', e => {
+      if (e.request.url.includes('allorigins') || e.request.url.includes('fonts.g')) return;
+      e.respondWith(caches.open('focus-v1').then(c =>
+        c.match(e.request).then(r => r || fetch(e.request).then(res => { c.put(e.request, res.clone()); return res; }))
+      ).catch(() => caches.match(e.request)));
+    });
+  `;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+
+// PWA manifest
+const manifest = {
+  name: 'Focus',
+  short_name: 'Focus',
+  start_url: './',
+  display: 'standalone',
+  background_color: '#0d0f14',
+  theme_color: '#0d0f14',
+  icons: [{ src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230d0f14'/><text y='72' font-size='60' x='50' text-anchor='middle'>◈</text></svg>", sizes: '512x512', type: 'image/svg+xml' }]
+};
+const mBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+const mUrl = URL.createObjectURL(mBlob);
+const mLink = document.createElement('link');
+mLink.rel = 'manifest'; mLink.href = mUrl;
+document.head.appendChild(mLink);
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+window.addEventListener('load', () => {
+  renderAll();
+  if (settings.icsUrl) syncCalendar();
+});
+</script>
+</body>
+</html>
