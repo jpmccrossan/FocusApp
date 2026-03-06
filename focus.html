@@ -957,10 +957,12 @@ function load(key, fallback) {
 }
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
-let tasks   = load('focus_tasks', []);
-let habits  = load('focus_habits', []);
-let goals   = load('focus_goals', []);
-let editingId = null; // tracks which item is being edited, null = creating new
+let tasks     = load('focus_tasks', []);
+let habits    = load('focus_habits', []);
+let goals     = load('focus_goals', []);
+let calEvents = load('focus_cal', []);
+let settings  = load('focus_settings', { icsUrl: '', calConnected: false });
+let editingId = null;
 
 // ══════════════════════════════════════════
 //  NAVIGATION
@@ -991,9 +993,15 @@ function renderDashboard() {
   document.getElementById('headerDate').textContent = `${days[d.getDay()]} · ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 
   const todayTasks = tasks.filter(t => t.date === today());
-  const done = todayTasks.filter(t => t.done).length;
+  const tasksDone  = todayTasks.filter(t => t.done).length;
+  const dueHabits  = habits.filter(h => isHabitDueToday(h));
+  const habitsDone = dueHabits.filter(h => (h.log||[]).includes(today())).length;
+
+  const totalItems = todayTasks.length + dueHabits.length;
+  const doneItems  = tasksDone + habitsDone;
+  const done  = tasksDone;
   const total = todayTasks.length;
-  const pct = total > 0 ? Math.round((done/total)*100) : 0;
+  const pct   = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
 
   const h = d.getHours();
   const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -1001,6 +1009,7 @@ function renderDashboard() {
   let html = `
     <div class="greeting">${greet},<br><span>JP.</span></div>
     <div class="sub-greeting">Here's where you stand today.</div>
+    <div class="sub-greeting">Remember bro - your calendar is your life...</div>
   `;
 
   // Progress ring
@@ -1024,27 +1033,38 @@ function renderDashboard() {
   `;
 
   // Stats
-  const habitsToday = habits.filter(h => isHabitDueToday(h) && (h.log||[]).includes(today())).length;
-  const habitsDueToday = habits.filter(h => isHabitDueToday(h)).length;
   const activeGoals = goals.filter(g => !g.done).length;
   html += `
     <div class="stat-row">
       <div class="stat-box"><span class="stat-val">${done}/${total}</span><span class="stat-lbl">Tasks</span></div>
-      <div class="stat-box"><span class="stat-val">${habitsToday}/${habitsDueToday}</span><span class="stat-lbl">Habits</span></div>
+      <div class="stat-box"><span class="stat-val">${habitsDone}/${dueHabits.length}</span><span class="stat-lbl">Habits</span></div>
       <div class="stat-box"><span class="stat-val">${activeGoals}</span><span class="stat-lbl">Goals</span></div>
     </div>
   `;
 
-  // Today's tasks
-  html += `<div class="card">
-    <div class="card-header">
-      <div class="card-title">Today's Tasks</div>
-    </div>`;
+  // ── Calendar events ──
+  if (calEvents.length > 0) {
+    html += `<div class="section-label">Today's Calendar</div><div class="cal-strip">`;
+    calEvents.forEach(ev => {
+      html += `<div class="cal-event">
+        <div class="cal-event-title">${escHtml(ev.summary||'(no title)')}</div>
+        <div class="cal-event-time">${formatEventTime(ev)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  } else if (settings.calConnected) {
+    html += `<div class="section-label">Today's Calendar</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        No events today — or tap 📅 to re-sync.
+      </div>`;
+  }
 
+  // ── Today's Tasks ──
+  html += `<div class="card"><div class="card-header"><div class="card-title">Tasks</div></div>`;
   if (todayTasks.length === 0) {
-    html += `<div class="empty-state"><span>✦</span>No tasks yet.<br>Tap + to add something.</div>`;
+    html += `<div class="empty-state" style="padding:14px 0"><span>✦</span>No tasks yet — tap + to add one.</div>`;
   } else {
-    todayTasks.forEach((t, i) => {
+    todayTasks.forEach(t => {
       const goalName = t.goalId ? (goals.find(g=>g.id===t.goalId)||{}).name : '';
       const dlHtml = deadlineHtml(t.deadline);
       html += `<div class="task-item ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
@@ -1056,15 +1076,40 @@ function renderDashboard() {
         </div>
         <div class="item-actions">
           <button class="cal-btn" title="Add to iPhone Calendar" onclick="event.stopPropagation();addTaskToCalendar('${t.id}')">📅</button>
-          ${t.notes ? `<button class="note-btn" title="View note" onclick="event.stopPropagation();openNotePopup(${JSON.stringify(escHtml(t.text))},${JSON.stringify(t.notes)})">✎📋</button>` : ''}
+          ${t.notes ? `<button class="note-btn" title="View note" onclick="event.stopPropagation();openNotePopup(${JSON.stringify(escHtml(t.text))},${JSON.stringify(t.notes)})">📋</button>` : ''}
           <button class="edit-btn" title="Edit" onclick="event.stopPropagation();openEditModal('task','${t.id}')">✎</button>
           <button class="delete-btn" title="Delete" onclick="event.stopPropagation();confirmDelete('task','${t.id}')">✕</button>
         </div>
       </div>`;
     });
   }
-
   html += `</div>`;
+
+  // ── Today's Habits ──
+  if (dueHabits.length > 0) {
+    html += `<div class="card"><div class="card-header"><div class="card-title">Habits</div></div>`;
+    dueHabits.forEach(h => {
+      const loggedToday = (h.log||[]).includes(today());
+      const streak = calcStreak(h.log||[], h);
+      html += `<div class="task-item ${loggedToday?'done':''}" onclick="toggleHabit('${h.id}')">
+        <div class="task-check" style="${loggedToday?'background:var(--amber);border-color:var(--amber)':''}">
+          ${loggedToday ? `<span style="color:var(--bg);font-size:11px;font-weight:700">✓</span>` : ''}
+        </div>
+        <div style="flex:1">
+          <div class="task-text" style="${loggedToday?'text-decoration:line-through;color:var(--text-muted)':''}">
+            ${escHtml(h.emoji||'⬡')} ${escHtml(h.name)}
+          </div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px">
+            ${recurDescription(h)}${streak>0 ? ` · 🔥 ${streak} streak` : ''}
+          </div>
+        </div>
+        <div class="item-actions">
+          ${h.notes ? `<button class="note-btn" title="View note" onclick="event.stopPropagation();openNotePopup(${JSON.stringify(escHtml(h.name))},${JSON.stringify(h.notes)})">📋</button>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
 
   document.getElementById('view-dashboard').innerHTML = html;
 }
