@@ -601,18 +601,153 @@
 
   .amber { color: var(--amber); }
 
-  /* delete button */
+  /* action buttons */
   .delete-btn {
     font-size: 16px;
-    color: var(--text-muted);
+    color: var(--red);
     cursor: pointer;
-    padding: 4px;
-    transition: color 0.15s;
+    padding: 6px 8px;
+    transition: all 0.15s;
     flex-shrink: 0;
-    background: none;
-    border: none;
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.25);
+    border-radius: 7px;
+    line-height: 1;
+    min-width: 32px;
+    text-align: center;
   }
-  .delete-btn:active { color: var(--red); }
+  .delete-btn:active { background: rgba(248,113,113,0.3); transform: scale(0.93); }
+
+  .edit-btn {
+    font-size: 14px;
+    color: var(--blue);
+    cursor: pointer;
+    padding: 6px 8px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    background: rgba(96,165,250,0.1);
+    border: 1px solid rgba(96,165,250,0.25);
+    border-radius: 7px;
+    line-height: 1;
+    min-width: 32px;
+    text-align: center;
+    font-family: var(--font-mono);
+  }
+  .edit-btn:active { background: rgba(96,165,250,0.3); transform: scale(0.93); }
+
+  .cal-btn {
+    font-size: 14px;
+    cursor: pointer;
+    padding: 6px 8px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    background: rgba(96,165,250,0.08);
+    border: 1px solid rgba(96,165,250,0.2);
+    border-radius: 7px;
+    line-height: 1;
+    min-width: 32px;
+    text-align: center;
+  }
+  .cal-btn:active { transform: scale(0.93); opacity: 0.7; }
+
+  .item-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+
+  .note-btn {
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 8px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    background: rgba(232,160,69,0.1);
+    border: 1px solid rgba(232,160,69,0.25);
+    border-radius: 7px;
+    line-height: 1;
+    min-width: 32px;
+    text-align: center;
+    color: var(--amber);
+    font-family: var(--font-mono);
+  }
+  .note-btn:active { background: rgba(232,160,69,0.25); transform: scale(0.93); }
+
+  /* Note popup */
+  .note-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .note-popup-overlay.open { display: flex; }
+
+  .note-popup {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .note-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .note-popup-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--amber);
+    flex: 1;
+    padding-right: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .note-popup-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .note-popup-close:active { background: var(--border); }
+
+  .note-popup-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 18px;
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 
   .badge {
     display: inline-block;
@@ -798,6 +933,17 @@
   </div>
 </div>
 
+<!-- Note Popup -->
+<div class="note-popup-overlay" id="notePopup" onclick="closeNotePopup(event)">
+  <div class="note-popup">
+    <div class="note-popup-header">
+      <div class="note-popup-title" id="notePopupTitle"></div>
+      <button class="note-popup-close" onclick="document.getElementById('notePopup').classList.remove('open')">✕</button>
+    </div>
+    <div class="note-popup-body" id="notePopupBody"></div>
+  </div>
+</div>
+
 <input type="file" id="importFileInput" accept=".csv" style="display:none" onchange="handleImportFile(this)">
 
 <script>
@@ -908,9 +1054,12 @@ function renderDashboard() {
           ${dlHtml}
           ${goalName?`<div class="task-goal-link">↗ ${escHtml(goalName)}</div>`:''}
         </div>
-        <button class="delete-btn" style="font-size:13px;color:var(--blue)" title="Add to iPhone Calendar" onclick="event.stopPropagation();addTaskToCalendar('${t.id}')">📅</button>
-        <button class="delete-btn" style="color:var(--text-dim);font-size:13px" title="Edit" onclick="event.stopPropagation();openEditModal('task','${t.id}')">✎</button>
-        <button class="delete-btn" onclick="event.stopPropagation();deleteTask('${t.id}')">×</button>
+        <div class="item-actions">
+          <button class="cal-btn" title="Add to iPhone Calendar" onclick="event.stopPropagation();addTaskToCalendar('${t.id}')">📅</button>
+          ${t.notes ? `<button class="note-btn" title="View note" onclick="event.stopPropagation();openNotePopup(${JSON.stringify(escHtml(t.text))},${JSON.stringify(t.notes)})">✎📋</button>` : ''}
+          <button class="edit-btn" title="Edit" onclick="event.stopPropagation();openEditModal('task','${t.id}')">✎</button>
+          <button class="delete-btn" title="Delete" onclick="event.stopPropagation();confirmDelete('task','${t.id}')">✕</button>
+        </div>
       </div>`;
     });
   }
@@ -960,8 +1109,11 @@ function renderHabits() {
             <span style="display:inline-flex;gap:3px;vertical-align:middle">${dotsHtml}</span>
           </div>
         </div>
-        <button class="delete-btn" style="color:var(--text-dim);font-size:13px" onclick="openEditModal('habit','${h.id}')">✎</button>
-        <button class="delete-btn" onclick="deleteHabit('${h.id}')">×</button>
+        <div class="item-actions">
+          ${h.notes ? `<button class="note-btn" title="View note" onclick="openNotePopup(${JSON.stringify(escHtml(h.name))},${JSON.stringify(h.notes)})">📋</button>` : ''}
+          <button class="edit-btn" onclick="openEditModal('habit','${h.id}')">✎</button>
+          <button class="delete-btn" onclick="confirmDelete('habit','${h.id}')">✕</button>
+        </div>
       </div>`;
     };
 
@@ -1060,19 +1212,19 @@ function renderGoals() {
           <div class="goal-name">${escHtml(g.name)}</div>
           <div class="goal-cat">${g.category||'goal'}</div>
         </div>
-        ${g.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;line-height:1.5">${escHtml(g.notes)}</div>` : ''}
         <div class="goal-bar-wrap"><div class="goal-bar" style="width:${progress}%"></div></div>
         <div class="goal-meta">
           <span>${progress}% complete · ${tasksDone}/${tasksLinked} tasks</span>
           ${daysLeft!==null?`<span class="days-left">${daysLeft>0?daysLeft+'d left':'Overdue'}</span>`:''}
         </div>
-        <div style="display:flex;gap:6px;margin-top:10px">
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
           <input type="range" min="0" max="100" value="${progress}" 
             style="flex:1;accent-color:var(--amber)" 
             oninput="updateGoalProgress('${g.id}',this.value)" onchange="saveGoalProgress('${g.id}',this.value)">
-          <button class="btn secondary" style="padding:4px 10px;font-size:11px" onclick="toggleGoalDone('${g.id}')">✓ Done</button>
-          <button class="delete-btn" style="color:var(--text-dim);font-size:13px" onclick="openEditModal('goal','${g.id}')">✎</button>
-          <button class="delete-btn" onclick="deleteGoal('${g.id}')">×</button>
+          <button class="btn secondary" style="padding:4px 10px;font-size:11px" onclick="toggleGoalDone('${g.id}')">✓</button>
+          ${g.notes ? `<button class="note-btn" onclick="openNotePopup(${JSON.stringify(escHtml(g.name))},${JSON.stringify(g.notes)})">📋</button>` : ''}
+          <button class="edit-btn" onclick="openEditModal('goal','${g.id}')">✎</button>
+          <button class="delete-btn" onclick="confirmDelete('goal','${g.id}')">✕</button>
         </div>
       </div>`;
     });
@@ -1087,7 +1239,9 @@ function renderGoals() {
           <div class="goal-name" style="text-decoration:line-through">${escHtml(g.name)}</div>
           <span class="badge green">Done</span>
         </div>
-        <button class="delete-btn" onclick="deleteGoal('${g.id}')">×</button>
+        <div class="item-actions" style="margin-top:8px">
+          <button class="delete-btn" onclick="confirmDelete('goal','${g.id}')">✕</button>
+        </div>
       </div>`;
     });
     html += `</div>`;
@@ -1132,6 +1286,23 @@ function renderSettings() {
   `;
 
   document.getElementById('view-settings').innerHTML = html;
+}
+
+// ══════════════════════════════════════════
+//  CONFIRM DELETE
+// ══════════════════════════════════════════
+function confirmDelete(type, id) {
+  const labels = { task: 'task', habit: 'habit', goal: 'goal' };
+  let name = '';
+  if (type === 'task')  name = (tasks.find(x=>x.id===id)||{}).text || 'this task';
+  if (type === 'habit') name = (habits.find(x=>x.id===id)||{}).name || 'this habit';
+  if (type === 'goal')  name = (goals.find(x=>x.id===id)||{}).name || 'this goal';
+
+  if (!confirm(`Delete ${labels[type]}?\n\n"${name}"\n\nThis cannot be undone.`)) return;
+
+  if (type === 'task')  deleteTask(id);
+  if (type === 'habit') deleteHabit(id);
+  if (type === 'goal')  deleteGoal(id);
 }
 
 // ══════════════════════════════════════════
@@ -1402,6 +1573,17 @@ function closeAddModal() {
 
 function closeModal(e) {
   if (e.target === document.getElementById('addModal')) closeAddModal();
+}
+
+function closeNotePopup(e) {
+  if (e.target === document.getElementById('notePopup'))
+    document.getElementById('notePopup').classList.remove('open');
+}
+
+function openNotePopup(title, note) {
+  document.getElementById('notePopupTitle').textContent = title;
+  document.getElementById('notePopupBody').textContent  = note;
+  document.getElementById('notePopup').classList.add('open');
 }
 
 function toggleDay(btn) {
