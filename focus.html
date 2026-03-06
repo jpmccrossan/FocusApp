@@ -798,6 +798,8 @@
   </div>
 </div>
 
+<input type="file" id="importFileInput" accept=".csv" style="display:none" onchange="handleImportFile(this)">
+
 <script>
 // ══════════════════════════════════════════
 //  STATE
@@ -1123,6 +1125,7 @@ function renderSettings() {
         <div><div class="settings-label">Active goals</div></div>
         <div style="color:var(--amber)">${goals.filter(g=>!g.done).length}</div>
       </div>
+      <button class="btn secondary full" style="margin-top:8px" onclick="document.getElementById('importFileInput').click()">⬆ Import CSV</button>
       <button class="btn full" style="margin-top:8px" onclick="exportAllData()">⬇ Export All Data as CSV</button>
       <button class="btn danger full" style="margin-top:8px" onclick="clearAllData()">Clear All Data</button>
     </div>
@@ -1492,6 +1495,174 @@ function exportAllData() {
   ];
 
   downloadCsv(`focus-export-${now}.csv`, allRows);
+}
+
+// ══════════════════════════════════════════
+//  IMPORT
+// ══════════════════════════════════════════
+function handleImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const result = importCsv(e.target.result);
+      const msg = `Import complete:\n• ${result.tasks} tasks\n• ${result.habits} habits\n• ${result.goals} goals\n\nDuplicates (same ID) were skipped.`;
+      alert(msg);
+      renderAll();
+    } catch (err) {
+      alert('Import failed. Make sure this is a Focus export CSV.\n\n' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  input.value = ''; // reset so same file can be re-imported
+}
+
+function importCsv(text) {
+  // Normalise line endings
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+  // Split into sections by ## headers
+  const sections = {};
+  let currentSection = null;
+  let buffer = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (currentSection) sections[currentSection] = buffer;
+      currentSection = line.slice(3).trim(); // e.g. "TASKS"
+      buffer = [];
+    } else if (currentSection) {
+      buffer.push(line);
+    }
+  }
+  if (currentSection) sections[currentSection] = buffer;
+
+  let addedTasks = 0, addedHabits = 0, addedGoals = 0;
+  const existingTaskIds  = new Set(tasks.map(t => t.id));
+  const existingHabitIds = new Set(habits.map(h => h.id));
+  const existingGoalIds  = new Set(goals.map(g => g.id));
+
+  // ── Parse goals first so we can resolve goal names → IDs for tasks ──
+  if (sections['GOALS']) {
+    const rows = parseCsvSection(sections['GOALS']);
+    for (const r of rows) {
+      if (!r.name) continue;
+      if (existingGoalIds.has(r.id)) continue;
+      goals.push({
+        id:       r.id || uid(),
+        name:     r.name,
+        category: r.category || 'personal',
+        deadline: r.deadline || null,
+        progress: parseInt(r.progress_pct) || 0,
+        done:     r.done === 'yes',
+        notes:    r.notes || null
+      });
+      existingGoalIds.add(r.id);
+      addedGoals++;
+    }
+    save('focus_goals', goals);
+  }
+
+  // ── Tasks ──
+  if (sections['TASKS']) {
+    const rows = parseCsvSection(sections['TASKS']);
+    for (const r of rows) {
+      if (!r.text) continue;
+      if (existingTaskIds.has(r.id)) continue;
+      // Resolve linked_goal name → id
+      let goalId = null;
+      if (r.linked_goal) {
+        const match = goals.find(g => g.name === r.linked_goal);
+        if (match) goalId = match.id;
+      }
+      tasks.push({
+        id:       r.id || uid(),
+        text:     r.text,
+        date:     r.date || today(),
+        done:     r.done === 'yes',
+        deadline: r.deadline || null,
+        goalId:   goalId,
+        notes:    r.notes || null
+      });
+      existingTaskIds.add(r.id);
+      addedTasks++;
+    }
+    save('focus_tasks', tasks);
+  }
+
+  // ── Habits ──
+  if (sections['HABITS']) {
+    const rows = parseCsvSection(sections['HABITS']);
+    for (const r of rows) {
+      if (!r.name) continue;
+      if (existingHabitIds.has(r.id)) continue;
+      const log = r.log_dates ? r.log_dates.split(';').filter(Boolean) : [];
+      habits.push({
+        id:       r.id || uid(),
+        name:     r.name,
+        emoji:    r.emoji || '⬡',
+        log,
+        schedule: parseScheduleString(r.schedule),
+        notes:    r.notes || null
+      });
+      existingHabitIds.add(r.id);
+      addedHabits++;
+    }
+    save('focus_habits', habits);
+  }
+
+  return { tasks: addedTasks, habits: addedHabits, goals: addedGoals };
+}
+
+// Parses a section's lines (skips blank, uses first non-blank as header)
+function parseCsvSection(lines) {
+  const nonBlank = lines.filter(l => l.trim() !== '');
+  if (nonBlank.length < 2) return [];
+  const headers = parseCsvLine(nonBlank[0]);
+  return nonBlank.slice(1).map(line => {
+    const vals = parseCsvLine(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] ?? ''; });
+    return obj;
+  });
+}
+
+// Proper RFC 4180 CSV line parser — handles quoted fields with commas/newlines
+function parseCsvLine(line) {
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { cur += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { result.push(cur); cur = ''; }
+      else { cur += ch; }
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// Reconstruct schedule object from the human-readable description string
+function parseScheduleString(str) {
+  if (!str || str === 'Every day') return { type: 'daily' };
+  if (str.startsWith('Weekly')) {
+    const dayMap = { Su:0, Mo:1, Tu:2, We:3, Th:4, Fr:5, Sa:6 };
+    const part = str.replace('Weekly · ', '');
+    const days = part.split(',').map(s => dayMap[s.trim()]).filter(d => d !== undefined);
+    return { type: 'weekly', days: days.length ? days : [1] };
+  }
+  if (str.startsWith('Monthly')) {
+    const match = str.match(/(\d+)/);
+    return { type: 'monthly', dayOfMonth: match ? parseInt(match[1]) : 1 };
+  }
+  return { type: 'daily' };
 }
 
 // ══════════════════════════════════════════
