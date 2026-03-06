@@ -261,42 +261,7 @@
     display: block;
   }
 
-  .cal-strip {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-    margin-bottom: 12px;
-  }
-  .cal-strip::-webkit-scrollbar { display: none; }
-
-  .cal-event {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--blue);
-    border-radius: 8px;
-    padding: 8px 10px;
-    min-width: 140px;
-    flex-shrink: 0;
-  }
-
-  .cal-event-title {
-    font-size: 12px;
-    color: var(--text);
-    margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 160px;
-  }
-
-  .cal-event-time {
-    font-size: 10px;
-    color: var(--text-dim);
-  }
-
-  /* ── Task items ── */
+  /* ── Badges ── */
   .task-item {
     display: flex;
     align-items: flex-start;
@@ -649,19 +614,6 @@
   }
   .delete-btn:active { color: var(--red); }
 
-  /* cal setup */
-  .setup-steps {
-    background: var(--bg3);
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 12px;
-    font-size: 12px;
-    line-height: 1.8;
-    color: var(--text-dim);
-  }
-  .setup-steps b { color: var(--text); }
-  .setup-steps a { color: var(--blue); }
-
   .badge {
     display: inline-block;
     padding: 2px 8px;
@@ -672,6 +624,33 @@
   }
   .badge.green { background: rgba(74,222,128,0.15); color: var(--green); }
   .badge.dim { background: var(--bg3); color: var(--text-dim); }
+
+  /* Day picker */
+  .day-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .day-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--bg3); color: var(--text-dim);
+    font-size: 11px; font-family: var(--font-mono);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .day-btn.selected { background: var(--amber); border-color: var(--amber); color: var(--bg); font-weight: 600; }
+
+  /* Recurrence label */
+  .recur-badge {
+    font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--amber-dim); margin-top: 2px;
+  }
+
+  /* Habit not-due-today dimming */
+  .habit-item.not-due { opacity: 0.4; }
+
+  /* Task deadline */
+  .task-deadline { font-size: 10px; margin-top: 2px; }
+  .task-deadline.overdue { color: var(--red); }
+  .task-deadline.due-soon { color: var(--amber); }
+  .task-deadline.fine { color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -684,8 +663,7 @@
       <div class="header-date" id="headerDate"></div>
     </div>
     <div class="header-right">
-      <div class="icon-btn" id="calSyncBtn" onclick="syncCalendar()" title="Sync Calendar">📅</div>
-      <div class="icon-btn" onclick="openAddModal()" title="Add">＋</div>
+      <div class="icon-btn" onclick="openAddModal('task')" title="Add">＋</div>
     </div>
   </div>
 
@@ -732,12 +710,20 @@
         <input class="input full" id="taskName" placeholder="What needs doing today?" maxlength="100">
       </div>
       <div class="form-group">
+        <label class="form-label">Deadline (optional)</label>
+        <input class="input full" type="date" id="taskDeadline">
+      </div>
+      <div class="form-group">
         <label class="form-label">Link to goal (optional)</label>
         <select class="input full" id="taskGoal">
           <option value="">— no goal —</option>
         </select>
       </div>
-      <button class="btn full" onclick="addTask()">Add Task</button>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea class="input full" id="taskNotes" rows="3" placeholder="Any extra context…" style="resize:none;line-height:1.5"></textarea>
+      </div>
+      <button class="btn full" id="taskSaveBtn" onclick="saveTask()">Add Task</button>
     </div>
 
     <!-- Habit form -->
@@ -750,7 +736,37 @@
         <label class="form-label">Emoji icon</label>
         <input class="input full" id="habitEmoji" placeholder="🏋️" maxlength="2" value="⬡">
       </div>
-      <button class="btn full" onclick="addHabit()">Add Habit</button>
+      <div class="form-group">
+        <label class="form-label">Schedule</label>
+        <select class="input full" id="habitRecur" onchange="updateRecurUI()">
+          <option value="daily">Every day</option>
+          <option value="weekly">Weekly — specific days</option>
+          <option value="monthly">Once a month</option>
+        </select>
+      </div>
+      <!-- Weekly day picker -->
+      <div id="weeklyPicker" style="display:none" class="form-group">
+        <label class="form-label">Which days?</label>
+        <div class="day-picker">
+          <button type="button" class="day-btn" data-day="1" onclick="toggleDay(this)">Mo</button>
+          <button type="button" class="day-btn" data-day="2" onclick="toggleDay(this)">Tu</button>
+          <button type="button" class="day-btn" data-day="3" onclick="toggleDay(this)">We</button>
+          <button type="button" class="day-btn" data-day="4" onclick="toggleDay(this)">Th</button>
+          <button type="button" class="day-btn" data-day="5" onclick="toggleDay(this)">Fr</button>
+          <button type="button" class="day-btn" data-day="6" onclick="toggleDay(this)">Sa</button>
+          <button type="button" class="day-btn" data-day="0" onclick="toggleDay(this)">Su</button>
+        </div>
+      </div>
+      <!-- Monthly day picker -->
+      <div id="monthlyPicker" style="display:none" class="form-group">
+        <label class="form-label">Day of month</label>
+        <input class="input full" type="number" id="habitMonthDay" min="1" max="31" placeholder="e.g. 1 for the 1st" value="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea class="input full" id="habitNotes" rows="3" placeholder="Why this habit matters…" style="resize:none;line-height:1.5"></textarea>
+      </div>
+      <button class="btn full" id="habitSaveBtn" onclick="saveHabit()">Add Habit</button>
     </div>
 
     <!-- Goal form -->
@@ -773,32 +789,12 @@
         <label class="form-label">Target date</label>
         <input class="input full" type="date" id="goalDeadline">
       </div>
-      <button class="btn full" onclick="addGoal()">Add Goal</button>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea class="input full" id="goalNotes" rows="3" placeholder="Why this goal matters, how to get there…" style="resize:none;line-height:1.5"></textarea>
+      </div>
+      <button class="btn full" id="goalSaveBtn" onclick="saveGoal()">Add Goal</button>
     </div>
-  </div>
-</div>
-
-<!-- iCloud Calendar Setup Modal -->
-<div class="modal-overlay" id="calModal" onclick="closeCalModal(event)">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <div class="modal-title">iPhone Calendar Setup</div>
-    <div class="setup-steps">
-      <b>Get your iCloud calendar link (30 seconds):</b><br>
-      1. Open <b>Calendar</b> app on iPhone or iCloud.com<br>
-      2. Tap the ⓘ next to your calendar → <b>Share Calendar</b><br>
-      3. Toggle <b>Public Calendar</b> ON<br>
-      4. Tap <b>Share Link</b> → Copy<br>
-      5. Paste the <b>webcal://</b> link below<br><br>
-      <b>Note:</b> Only events marked public are visible. Your data never leaves your phone.
-    </div>
-    <div class="form-group">
-      <label class="form-label">iCloud Calendar URL (webcal:// or https://)</label>
-      <input class="input full" id="icsUrlInput" placeholder="webcal://p01-caldav.icloud.com/published/2/...">
-    </div>
-    <div id="calSyncStatus" style="font-size:12px;color:var(--text-dim);margin-bottom:10px;min-height:16px"></div>
-    <button class="btn full" onclick="saveIcsUrl()">Save & Sync Calendar</button>
-    <button class="btn secondary full" style="margin-top:8px" onclick="document.getElementById('calModal').classList.remove('open')">Cancel</button>
   </div>
 </div>
 
@@ -816,8 +812,7 @@ function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 let tasks   = load('focus_tasks', []);
 let habits  = load('focus_habits', []);
 let goals   = load('focus_goals', []);
-let calEvents = load('focus_cal', []);
-let settings = load('focus_settings', { icsUrl: '', calConnected: false });
+let editingId = null; // tracks which item is being edited, null = creating new
 
 // ══════════════════════════════════════════
 //  NAVIGATION
@@ -881,32 +876,16 @@ function renderDashboard() {
   `;
 
   // Stats
-  const habitsToday = habits.filter(h => (h.log||[]).includes(today())).length;
+  const habitsToday = habits.filter(h => isHabitDueToday(h) && (h.log||[]).includes(today())).length;
+  const habitsDueToday = habits.filter(h => isHabitDueToday(h)).length;
   const activeGoals = goals.filter(g => !g.done).length;
   html += `
     <div class="stat-row">
       <div class="stat-box"><span class="stat-val">${done}/${total}</span><span class="stat-lbl">Tasks</span></div>
-      <div class="stat-box"><span class="stat-val">${habitsToday}/${habits.length}</span><span class="stat-lbl">Habits</span></div>
+      <div class="stat-box"><span class="stat-val">${habitsToday}/${habitsDueToday}</span><span class="stat-lbl">Habits</span></div>
       <div class="stat-box"><span class="stat-val">${activeGoals}</span><span class="stat-lbl">Goals</span></div>
     </div>
   `;
-
-  // Calendar events
-  if (calEvents.length > 0) {
-    html += `<div class="section-label">Today's Calendar</div><div class="cal-strip">`;
-    calEvents.forEach(ev => {
-      html += `<div class="cal-event">
-        <div class="cal-event-title">${escHtml(ev.summary||'(no title)')}</div>
-        <div class="cal-event-time">${formatEventTime(ev)}</div>
-      </div>`;
-    });
-    html += `</div>`;
-  } else if (settings.calConnected) {
-    html += `<div class="section-label">Today's Calendar</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-        No events today — or tap 📅 to re-sync.
-      </div>`;
-  }
 
   // Today's tasks
   html += `<div class="card">
@@ -919,13 +898,16 @@ function renderDashboard() {
   } else {
     todayTasks.forEach((t, i) => {
       const goalName = t.goalId ? (goals.find(g=>g.id===t.goalId)||{}).name : '';
+      const dlHtml = deadlineHtml(t.deadline);
       html += `<div class="task-item ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
         <div class="task-check"></div>
         <div style="flex:1">
           <div class="task-text">${escHtml(t.text)}</div>
+          ${dlHtml}
           ${goalName?`<div class="task-goal-link">↗ ${escHtml(goalName)}</div>`:''}
         </div>
         <button class="delete-btn" style="font-size:13px;color:var(--blue)" title="Add to iPhone Calendar" onclick="event.stopPropagation();addTaskToCalendar('${t.id}')">📅</button>
+        <button class="delete-btn" style="color:var(--text-dim);font-size:13px" title="Edit" onclick="event.stopPropagation();openEditModal('task','${t.id}')">✎</button>
         <button class="delete-btn" onclick="event.stopPropagation();deleteTask('${t.id}')">×</button>
       </div>`;
     });
@@ -936,17 +918,6 @@ function renderDashboard() {
   document.getElementById('view-dashboard').innerHTML = html;
 }
 
-function formatEventTime(ev) {
-  if (ev.dtstart && ev.dtstart.includes('T')) {
-    // Parse ICS datetime: 20240306T090000Z or 20240306T090000
-    const s = ev.dtstart.replace('Z','');
-    const h = s.slice(9,11), m = s.slice(11,13);
-    const d = new Date(); d.setHours(parseInt(h), parseInt(m));
-    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  }
-  return 'All day';
-}
-
 // ── HABITS ──
 function renderHabits() {
   let html = `<div class="card-title" style="margin-bottom:14px">Habit Tracker</div>`;
@@ -954,52 +925,114 @@ function renderHabits() {
   if (habits.length === 0) {
     html += `<div class="empty-state"><span>⬡</span>No habits yet.<br>Build consistency one day at a time.</div>`;
   } else {
-    html += `<div class="card">`;
-    habits.forEach(h => {
+    // Split: due today first, then not due
+    const due = habits.filter(h => isHabitDueToday(h));
+    const notDue = habits.filter(h => !isHabitDueToday(h));
+
+    const renderHabitItem = (h, dimmed) => {
       const log = h.log || [];
       const doneTodayFlag = log.includes(today());
-      const streak = calcStreak(log);
+      const streak = calcStreak(log, h);
+      const recurLabel = recurDescription(h);
 
-      // Last 7 days dots
+      // Last 7 days dots — grey out days when habit wasn't scheduled
       const last7 = [];
       for (let i=6; i>=0; i--) {
         const d = new Date(); d.setDate(d.getDate()-i);
         const ds = d.toISOString().slice(0,10);
-        last7.push({ ds, done: log.includes(ds), isToday: i===0 });
+        const wasDue = isHabitDueOnDate(h, d);
+        last7.push({ ds, done: log.includes(ds), isToday: i===0, wasDue });
       }
       const dotsHtml = last7.map(x =>
-        `<div class="habit-day-dot ${x.done?'done':''} ${x.isToday?'today':''}"></div>`
+        `<div class="habit-day-dot ${x.done?'done':''} ${x.isToday?'today':''}" style="${!x.wasDue?'opacity:0.2':''}"></div>`
       ).join('');
 
-      html += `<div class="habit-item">
+      return `<div class="habit-item ${dimmed?'not-due':''}">
         <div class="habit-dot ${doneTodayFlag?'done':''}" onclick="toggleHabit('${h.id}')">${h.emoji||'⬡'}</div>
         <div class="habit-info">
           <div class="habit-name">${escHtml(h.name)}</div>
+          <div class="recur-badge">${recurLabel}</div>
+          ${h.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${escHtml(h.notes)}</div>` : ''}
           <div class="habit-streak">
-            ${streak>0?`<span class="streak-fire">🔥</span> ${streak} day streak — `:''}
+            ${streak>0?`<span class="streak-fire">🔥</span> ${streak} streak — `:''}
             <span style="display:inline-flex;gap:3px;vertical-align:middle">${dotsHtml}</span>
           </div>
         </div>
+        <button class="delete-btn" style="color:var(--text-dim);font-size:13px" onclick="openEditModal('habit','${h.id}')">✎</button>
         <button class="delete-btn" onclick="deleteHabit('${h.id}')">×</button>
       </div>`;
-    });
-    html += `</div>`;
+    };
+
+    if (due.length > 0) {
+      html += `<div class="section-label">Due today</div><div class="card">`;
+      due.forEach(h => { html += renderHabitItem(h, false); });
+      html += `</div>`;
+    }
+
+    if (notDue.length > 0) {
+      html += `<div class="section-label" style="margin-top:14px">Not scheduled today</div><div class="card">`;
+      notDue.forEach(h => { html += renderHabitItem(h, true); });
+      html += `</div>`;
+    }
   }
 
   document.getElementById('view-habits').innerHTML = html;
 }
 
-function calcStreak(log) {
+function calcStreak(log, habit) {
   if (!log || log.length === 0) return 0;
-  const sorted = [...log].sort().reverse();
   let streak = 0;
   const d = new Date();
-  while (true) {
+  // Walk back day by day; only count scheduled days
+  for (let i = 0; i < 365; i++) {
     const ds = d.toISOString().slice(0,10);
-    if (sorted.includes(ds)) { streak++; d.setDate(d.getDate()-1); }
+    const scheduled = !habit || isHabitDueOnDate(habit, new Date(d));
+    if (!scheduled) { d.setDate(d.getDate()-1); continue; }
+    if (log.includes(ds)) { streak++; d.setDate(d.getDate()-1); }
     else break;
   }
   return streak;
+}
+
+// Is this habit scheduled for today?
+function isHabitDueToday(h) {
+  return isHabitDueOnDate(h, new Date());
+}
+
+function isHabitDueOnDate(h, date) {
+  const s = h.schedule;
+  if (!s || s.type === 'daily') return true;
+  if (s.type === 'weekly') {
+    return (s.days || []).includes(date.getDay());
+  }
+  if (s.type === 'monthly') {
+    return date.getDate() === (s.dayOfMonth || 1);
+  }
+  return true;
+}
+
+function recurDescription(h) {
+  const s = h.schedule;
+  if (!s || s.type === 'daily') return 'Every day';
+  if (s.type === 'weekly') {
+    const names = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    return 'Weekly · ' + (s.days||[]).sort().map(d=>names[d]).join(', ');
+  }
+  if (s.type === 'monthly') {
+    const n = s.dayOfMonth || 1;
+    const suffix = n===1?'st':n===2?'nd':n===3?'rd':'th';
+    return `Monthly · ${n}${suffix}`;
+  }
+  return '';
+}
+
+function deadlineHtml(deadline) {
+  if (!deadline) return '';
+  const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
+  if (diff < 0) return `<div class="task-deadline overdue">⚠ Overdue by ${Math.abs(diff)}d</div>`;
+  if (diff === 0) return `<div class="task-deadline due-soon">Due today</div>`;
+  if (diff <= 3) return `<div class="task-deadline due-soon">Due in ${diff}d</div>`;
+  return `<div class="task-deadline fine">Due ${deadline}</div>`;
 }
 
 // ── GOALS ──
@@ -1025,6 +1058,7 @@ function renderGoals() {
           <div class="goal-name">${escHtml(g.name)}</div>
           <div class="goal-cat">${g.category||'goal'}</div>
         </div>
+        ${g.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;line-height:1.5">${escHtml(g.notes)}</div>` : ''}
         <div class="goal-bar-wrap"><div class="goal-bar" style="width:${progress}%"></div></div>
         <div class="goal-meta">
           <span>${progress}% complete · ${tasksDone}/${tasksLinked} tasks</span>
@@ -1035,6 +1069,7 @@ function renderGoals() {
             style="flex:1;accent-color:var(--amber)" 
             oninput="updateGoalProgress('${g.id}',this.value)" onchange="saveGoalProgress('${g.id}',this.value)">
           <button class="btn secondary" style="padding:4px 10px;font-size:11px" onclick="toggleGoalDone('${g.id}')">✓ Done</button>
+          <button class="delete-btn" style="color:var(--text-dim);font-size:13px" onclick="openEditModal('goal','${g.id}')">✎</button>
           <button class="delete-btn" onclick="deleteGoal('${g.id}')">×</button>
         </div>
       </div>`;
@@ -1061,25 +1096,8 @@ function renderGoals() {
 
 // ── SETTINGS ──
 function renderSettings() {
-  const calStatus = settings.calConnected
-    ? `<span class="badge green">Connected</span>`
-    : `<span class="badge dim">Not connected</span>`;
-
   let html = `
     <div class="card-title" style="margin-bottom:14px">Setup & Settings</div>
-    <div class="card">
-      <div class="settings-row">
-        <div>
-          <div class="settings-label">iPhone Calendar</div>
-          <div class="settings-sub">${settings.icsUrl ? 'Syncing from iCloud ICS link' : 'Paste your iCloud public calendar link'}</div>
-        </div>
-        ${calStatus}
-      </div>
-      <div style="margin-top:10px;display:flex;gap:8px">
-        <button class="btn" onclick="document.getElementById('icsUrlInput').value='${escHtml(settings.icsUrl||'')}';document.getElementById('calModal').classList.add('open')" style="flex:1">Configure</button>
-        ${settings.calConnected ? `<button class="btn secondary" onclick="disconnectCal()" style="flex:1">Disconnect</button>` : ''}
-      </div>
-    </div>
 
     <div class="card">
       <div class="settings-row">
@@ -1094,9 +1112,7 @@ function renderSettings() {
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">Data</div>
       <div class="settings-row" style="border:none">
-        <div>
-          <div class="settings-label">Tasks today</div>
-        </div>
+        <div><div class="settings-label">Tasks today</div></div>
         <div style="color:var(--amber)">${tasks.filter(t=>t.date===today()).length}</div>
       </div>
       <div class="settings-row" style="border:none">
@@ -1118,13 +1134,20 @@ function renderSettings() {
 // ══════════════════════════════════════════
 //  ACTIONS — TASKS
 // ══════════════════════════════════════════
-function addTask() {
+function saveTask() {
   const name = document.getElementById('taskName').value.trim();
   if (!name) return;
-  const goalId = document.getElementById('taskGoal').value;
-  tasks.push({ id: uid(), text: name, date: today(), done: false, goalId: goalId||null });
+  const goalId  = document.getElementById('taskGoal').value;
+  const deadline = document.getElementById('taskDeadline').value || null;
+  const notes   = document.getElementById('taskNotes').value.trim() || null;
+
+  if (editingId) {
+    const t = tasks.find(x => x.id === editingId);
+    if (t) { t.text = name; t.deadline = deadline; t.goalId = goalId||null; t.notes = notes; }
+  } else {
+    tasks.push({ id: uid(), text: name, date: today(), done: false, goalId: goalId||null, deadline, notes });
+  }
   save('focus_tasks', tasks);
-  document.getElementById('taskName').value = '';
   closeAddModal();
   renderAll();
 }
@@ -1143,13 +1166,30 @@ function deleteTask(id) {
 // ══════════════════════════════════════════
 //  ACTIONS — HABITS
 // ══════════════════════════════════════════
-function addHabit() {
-  const name = document.getElementById('habitName').value.trim();
+function saveHabit() {
+  const name  = document.getElementById('habitName').value.trim();
   if (!name) return;
   const emoji = document.getElementById('habitEmoji').value.trim() || '⬡';
-  habits.push({ id: uid(), name, emoji, log: [] });
+  const recur = document.getElementById('habitRecur').value;
+  const notes = document.getElementById('habitNotes').value.trim() || null;
+
+  let schedule = { type: recur };
+  if (recur === 'weekly') {
+    const days = [...document.querySelectorAll('.day-btn.selected')].map(b => parseInt(b.dataset.day));
+    if (days.length === 0) { alert('Please select at least one day.'); return; }
+    schedule.days = days;
+  } else if (recur === 'monthly') {
+    schedule.dayOfMonth = parseInt(document.getElementById('habitMonthDay').value) || 1;
+  }
+
+  if (editingId) {
+    const h = habits.find(x => x.id === editingId);
+    if (h) { h.name = name; h.emoji = emoji; h.schedule = schedule; h.notes = notes; }
+  } else {
+    habits.push({ id: uid(), name, emoji, log: [], schedule, notes });
+  }
   save('focus_habits', habits);
-  document.getElementById('habitName').value = '';
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
   closeAddModal();
   renderAll();
 }
@@ -1176,19 +1216,28 @@ function deleteHabit(id) {
 // ══════════════════════════════════════════
 //  ACTIONS — GOALS
 // ══════════════════════════════════════════
-function addGoal() {
-  const name = document.getElementById('goalName').value.trim();
+function saveGoal() {
+  const name  = document.getElementById('goalName').value.trim();
   if (!name) return;
-  goals.push({
-    id: uid(),
-    name,
-    category: document.getElementById('goalCat').value,
-    deadline: document.getElementById('goalDeadline').value || null,
-    progress: 0,
-    done: false
-  });
+  const notes = document.getElementById('goalNotes').value.trim() || null;
+
+  if (editingId) {
+    const g = goals.find(x => x.id === editingId);
+    if (g) {
+      g.name     = name;
+      g.category = document.getElementById('goalCat').value;
+      g.deadline = document.getElementById('goalDeadline').value || null;
+      g.notes    = notes;
+    }
+  } else {
+    goals.push({
+      id: uid(), name,
+      category: document.getElementById('goalCat').value,
+      deadline: document.getElementById('goalDeadline').value || null,
+      progress: 0, done: false, notes
+    });
+  }
   save('focus_goals', goals);
-  document.getElementById('goalName').value = '';
   closeAddModal();
   renderAll();
 }
@@ -1212,113 +1261,6 @@ function deleteGoal(id) {
   goals = goals.filter(g=>g.id!==id);
   save('focus_goals', goals);
   renderAll();
-}
-
-// ══════════════════════════════════════════
-//  iBRONE / iCLOUD CALENDAR (ICS)
-// ══════════════════════════════════════════
-
-function saveIcsUrl() {
-  let url = document.getElementById('icsUrlInput').value.trim();
-  if (!url) return;
-  // Convert webcal:// to https://
-  url = url.replace(/^webcal:\/\//i, 'https://');
-  settings.icsUrl = url;
-  save('focus_settings', settings);
-  document.getElementById('calSyncStatus').textContent = 'Syncing…';
-  fetchIcsCalendar(url).then(() => {
-    document.getElementById('calModal').classList.remove('open');
-  });
-}
-
-function disconnectCal() {
-  settings.calConnected = false;
-  settings.icsUrl = '';
-  save('focus_settings', settings);
-  calEvents = [];
-  save('focus_cal', calEvents);
-  renderAll();
-}
-
-async function syncCalendar() {
-  if (!settings.icsUrl) {
-    document.getElementById('icsUrlInput').value = '';
-    document.getElementById('calModal').classList.add('open');
-    return;
-  }
-  document.getElementById('calSyncBtn').textContent = '⏳';
-  await fetchIcsCalendar(settings.icsUrl);
-  document.getElementById('calSyncBtn').textContent = '📅';
-}
-
-async function fetchIcsCalendar(url) {
-  const statusEl = document.getElementById('calSyncStatus');
-  const PROXY = 'https://api.allorigins.win/raw?url=';
-
-  async function tryFetch(fetchUrl) {
-    const resp = await fetch(fetchUrl, { cache: 'no-store' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    return resp.text();
-  }
-
-  let icsText = null;
-  try {
-    icsText = await tryFetch(url);
-  } catch (e) {
-    try {
-      icsText = await tryFetch(PROXY + encodeURIComponent(url));
-    } catch (e2) {
-      if (statusEl) statusEl.textContent = '❌ Could not load calendar. Check the URL and try again.';
-      return;
-    }
-  }
-
-  const todayEvents = parseIcsForToday(icsText);
-  calEvents = todayEvents;
-  save('focus_cal', calEvents);
-  settings.calConnected = true;
-  save('focus_settings', settings);
-  if (statusEl) statusEl.textContent = `✓ Synced — ${todayEvents.length} event(s) today`;
-  renderAll();
-}
-
-function parseIcsForToday(icsText) {
-  const todayStr = today().replace(/-/g, ''); // YYYYMMDD
-  const events = [];
-
-  // Normalise line folding (lines wrapped with \r\n + space/tab)
-  const unfolded = icsText.replace(/\r\n[ \t]/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-  const eventBlocks = unfolded.split('BEGIN:VEVENT').slice(1);
-  for (const block of eventBlocks) {
-    const end = block.indexOf('END:VEVENT');
-    const content = end >= 0 ? block.slice(0, end) : block;
-
-    const get = (key) => {
-      // Match KEY, KEY;TZID=..., KEY;VALUE=... etc.
-      const re = new RegExp(`^${key}[;:][^\n]*`, 'm');
-      const m = content.match(re);
-      if (!m) return '';
-      return m[0].replace(/^[^:]+:/, '').trim();
-    };
-
-    const summary  = get('SUMMARY');
-    const dtstart  = get('DTSTART');
-    const dtend    = get('DTEND');
-    const location = get('LOCATION');
-
-    if (!dtstart) continue;
-
-    // Check if event falls on today
-    const dateStr = dtstart.replace(/T.*$/, '').replace(/[^0-9]/g, '');
-    if (dateStr !== todayStr) continue;
-
-    events.push({ summary, dtstart, dtend, location });
-  }
-
-  // Sort by start time
-  events.sort((a,b) => a.dtstart.localeCompare(b.dtstart));
-  return events;
 }
 
 // ── Add task to iPhone Calendar as .ics download ──
@@ -1365,18 +1307,93 @@ function addTaskToCalendar(taskId) {
 // ══════════════════════════════════════════
 //  MODALS
 // ══════════════════════════════════════════
-function openAddModal() {
-  // Populate goal dropdown
+function openAddModal(tab) {
+  editingId = null;
+  _resetModal();
+  switchModalTab(tab || 'task');
+  document.getElementById('modalTitle').textContent = 'Add Item';
+  document.getElementById('taskSaveBtn').textContent  = 'Add Task';
+  document.getElementById('habitSaveBtn').textContent = 'Add Habit';
+  document.getElementById('goalSaveBtn').textContent  = 'Add Goal';
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('taskName').focus(), 300);
+}
+
+function openEditModal(type, id) {
+  editingId = id;
+  _resetModal();
+  switchModalTab(type);
+  document.getElementById('modalTitle').textContent = 'Edit ' + type.charAt(0).toUpperCase() + type.slice(1);
+  document.getElementById('taskSaveBtn').textContent  = 'Save Task';
+  document.getElementById('habitSaveBtn').textContent = 'Save Habit';
+  document.getElementById('goalSaveBtn').textContent  = 'Save Goal';
+
+  if (type === 'task') {
+    const t = tasks.find(x => x.id === id);
+    if (!t) return;
+    // Populate goal dropdown first
+    const sel = document.getElementById('taskGoal');
+    sel.innerHTML = '<option value="">— no goal —</option>';
+    goals.filter(g=>!g.done).forEach(g => {
+      sel.innerHTML += `<option value="${g.id}" ${g.id===t.goalId?'selected':''}>${escHtml(g.name)}</option>`;
+    });
+    document.getElementById('taskName').value     = t.text;
+    document.getElementById('taskDeadline').value = t.deadline || '';
+    document.getElementById('taskNotes').value    = t.notes || '';
+  }
+
+  if (type === 'habit') {
+    const h = habits.find(x => x.id === id);
+    if (!h) return;
+    document.getElementById('habitName').value    = h.name;
+    document.getElementById('habitEmoji').value   = h.emoji || '⬡';
+    document.getElementById('habitNotes').value   = h.notes || '';
+    const s = h.schedule || { type: 'daily' };
+    document.getElementById('habitRecur').value   = s.type;
+    updateRecurUI();
+    if (s.type === 'weekly' && s.days) {
+      document.querySelectorAll('.day-btn').forEach(b => {
+        if (s.days.includes(parseInt(b.dataset.day))) b.classList.add('selected');
+      });
+    }
+    if (s.type === 'monthly') {
+      document.getElementById('habitMonthDay').value = s.dayOfMonth || 1;
+    }
+  }
+
+  if (type === 'goal') {
+    const g = goals.find(x => x.id === id);
+    if (!g) return;
+    document.getElementById('goalName').value     = g.name;
+    document.getElementById('goalCat').value      = g.category || 'work';
+    document.getElementById('goalDeadline').value = g.deadline || '';
+    document.getElementById('goalNotes').value    = g.notes || '';
+  }
+
+  document.getElementById('addModal').classList.add('open');
+}
+
+function _resetModal() {
+  ['taskName','taskNotes','habitName','habitNotes','goalName','goalNotes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('taskDeadline').value = '';
+  document.getElementById('goalDeadline').value = '';
+  document.getElementById('habitEmoji').value = '⬡';
+  document.getElementById('habitRecur').value = 'daily';
+  document.getElementById('habitMonthDay').value = '1';
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
+  updateRecurUI();
+  // Reset goal dropdown
   const sel = document.getElementById('taskGoal');
   sel.innerHTML = '<option value="">— no goal —</option>';
   goals.filter(g=>!g.done).forEach(g => {
     sel.innerHTML += `<option value="${g.id}">${escHtml(g.name)}</option>`;
   });
-  document.getElementById('addModal').classList.add('open');
-  setTimeout(() => document.getElementById('taskName').focus(), 300);
 }
 
 function closeAddModal() {
+  editingId = null;
   document.getElementById('addModal').classList.remove('open');
 }
 
@@ -1384,9 +1401,14 @@ function closeModal(e) {
   if (e.target === document.getElementById('addModal')) closeAddModal();
 }
 
-function closeCalModal(e) {
-  if (e.target === document.getElementById('calModal'))
-    document.getElementById('calModal').classList.remove('open');
+function toggleDay(btn) {
+  btn.classList.toggle('selected');
+}
+
+function updateRecurUI() {
+  const val = document.getElementById('habitRecur').value;
+  document.getElementById('weeklyPicker').style.display  = val === 'weekly'  ? 'block' : 'none';
+  document.getElementById('monthlyPicker').style.display = val === 'monthly' ? 'block' : 'none';
 }
 
 function switchModalTab(tab) {
@@ -1404,11 +1426,10 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 
 function clearAllData() {
   if (!confirm('Delete all tasks, habits, and goals? This cannot be undone.')) return;
-  tasks = []; habits = []; goals = []; calEvents = [];
+  tasks = []; habits = []; goals = [];
   save('focus_tasks', tasks);
   save('focus_habits', habits);
   save('focus_goals', goals);
-  save('focus_cal', calEvents);
   renderAll();
 }
 
@@ -1436,24 +1457,24 @@ function exportAllData() {
   const now = new Date().toISOString().slice(0,10);
 
   // ── TASKS ──
-  const taskRows = [csvRow(['id','date','text','done','linked_goal'])];
+  const taskRows = [csvRow(['id','date','text','done','deadline','linked_goal','notes'])];
   tasks.forEach(t => {
     const goalName = t.goalId ? (goals.find(g=>g.id===t.goalId)||{}).name||'' : '';
-    taskRows.push(csvRow([t.id, t.date, t.text, t.done ? 'yes' : 'no', goalName]));
+    taskRows.push(csvRow([t.id, t.date, t.text, t.done?'yes':'no', t.deadline||'', goalName, t.notes||'']));
   });
 
   // ── HABITS ──
-  const habitRows = [csvRow(['id','name','emoji','streak','total_days_logged','log_dates'])];
+  const habitRows = [csvRow(['id','name','emoji','schedule','streak','total_days_logged','log_dates','notes'])];
   habits.forEach(h => {
     const log = h.log || [];
-    habitRows.push(csvRow([h.id, h.name, h.emoji||'', calcStreak(log), log.length, log.sort().join(';')]));
+    habitRows.push(csvRow([h.id, h.name, h.emoji||'', recurDescription(h), calcStreak(log,h), log.length, log.sort().join(';'), h.notes||'']));
   });
 
   // ── GOALS ──
-  const goalRows = [csvRow(['id','name','category','deadline','progress_pct','done','linked_tasks_total','linked_tasks_done'])];
+  const goalRows = [csvRow(['id','name','category','deadline','progress_pct','done','linked_tasks_total','linked_tasks_done','notes'])];
   goals.forEach(g => {
     const linked = tasks.filter(t=>t.goalId===g.id);
-    goalRows.push(csvRow([g.id, g.name, g.category||'', g.deadline||'', g.progress||0, g.done?'yes':'no', linked.length, linked.filter(t=>t.done).length]));
+    goalRows.push(csvRow([g.id, g.name, g.category||'', g.deadline||'', g.progress||0, g.done?'yes':'no', linked.length, linked.filter(t=>t.done).length, g.notes||'']));
   });
 
   // ── COMBINED: three sheets in one file, separated by blank lines ──
@@ -1513,7 +1534,6 @@ document.head.appendChild(mLink);
 // ══════════════════════════════════════════
 window.addEventListener('load', () => {
   renderAll();
-  if (settings.icsUrl) syncCalendar();
 });
 </script>
 </body>
